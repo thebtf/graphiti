@@ -18,6 +18,7 @@ from graphiti_core.nodes import EpisodeType, EpisodicNode
 from graphiti_core.search.search_filters import SearchFilters
 from graphiti_core.utils.maintenance.graph_data_operations import clear_data
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 from pydantic import BaseModel
 from starlette.responses import JSONResponse
 
@@ -143,10 +144,39 @@ For optimal performance, ensure the database is properly configured and accessib
 API keys are provided for any language model operations.
 """
 
+# Transport security configuration
+# MCP_ALLOWED_HOSTS: comma-separated list of allowed hosts (e.g., "localhost:*,unleashed.lan:*")
+# MCP_DISABLE_DNS_PROTECTION: set to "true" to disable DNS rebinding protection (not recommended)
+def _get_transport_security() -> TransportSecuritySettings:
+    """Configure transport security for MCP server."""
+    disable_protection = os.getenv('MCP_DISABLE_DNS_PROTECTION', '').lower() == 'true'
+
+    if disable_protection:
+        return TransportSecuritySettings(enable_dns_rebinding_protection=False)
+
+    # Default allowed hosts + custom hosts from environment
+    allowed_hosts = [
+        'localhost:*',
+        '127.0.0.1:*',
+        '[::1]:*',
+    ]
+
+    # Add custom hosts from environment variable
+    custom_hosts = os.getenv('MCP_ALLOWED_HOSTS', '')
+    if custom_hosts:
+        allowed_hosts.extend(h.strip() for h in custom_hosts.split(',') if h.strip())
+
+    return TransportSecuritySettings(
+        enable_dns_rebinding_protection=True,
+        allowed_hosts=allowed_hosts,
+    )
+
+
 # MCP server instance
 mcp = FastMCP(
     'Graphiti Agent Memory',
     instructions=GRAPHITI_MCP_INSTRUCTIONS,
+    transport_security=_get_transport_security(),
 )
 
 # Global services
