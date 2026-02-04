@@ -1,4 +1,4 @@
-name: Build and Push Docker Image
+name: Build and Push Docker Images
 
 on:
   push:
@@ -12,13 +12,23 @@ on:
         description: 'Graphiti core version'
         required: false
         default: '0.27.0'
+      build_target:
+        description: 'Build target'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - full
+          - slim
 
 env:
   REGISTRY: docker.io
-  IMAGE_NAME: thebtf/graphiti-mcp-full
+  GRAPHITI_VERSION: ${{ github.event.inputs.graphiti_version || '0.27.0' }}
 
 jobs:
-  build-and-push:
+  build-full:
+    if: ${{ github.event.inputs.build_target != 'slim' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -37,17 +47,16 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Extract metadata
+      - name: Extract metadata (full)
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: ${{ env.REGISTRY }}/thebtf/graphiti-mcp-full
           tags: |
             type=raw,value=latest
-            type=raw,value=${{ github.event.inputs.graphiti_version || '0.27.0' }}
-            type=sha,prefix=
+            type=raw,value=${{ env.GRAPHITI_VERSION }}
 
-      - name: Build and push Docker image
+      - name: Build and push full image
         uses: docker/build-push-action@v5
         with:
           context: ./mcp_server
@@ -56,7 +65,51 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            GRAPHITI_CORE_VERSION=${{ github.event.inputs.graphiti_version || '0.27.0' }}
+            GRAPHITI_CORE_VERSION=${{ env.GRAPHITI_VERSION }}
+            BUILD_DATE=${{ github.event.repository.updated_at }}
+            VCS_REF=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  build-slim:
+    if: ${{ github.event.inputs.build_target != 'full' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract metadata (slim)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/thebtf/graphiti-mcp-slim
+          tags: |
+            type=raw,value=latest
+            type=raw,value=${{ env.GRAPHITI_VERSION }}
+
+      - name: Build and push slim image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./mcp_server
+          file: ./mcp_server/docker/Dockerfile.slim
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            GRAPHITI_CORE_VERSION=${{ env.GRAPHITI_VERSION }}
             BUILD_DATE=${{ github.event.repository.updated_at }}
             VCS_REF=${{ github.sha }}
           cache-from: type=gha
