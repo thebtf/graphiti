@@ -28,7 +28,8 @@ ENV UV_COMPILE_BYTECODE=1 \
 WORKDIR /app/mcp
 
 # Accept graphiti-core version as build argument
-ARG GRAPHITI_CORE_VERSION=0.23.1
+# Updated to latest version with full provider support
+ARG GRAPHITI_CORE_VERSION=0.27.0
 
 # Copy project files for dependency installation
 COPY pyproject.toml uv.lock ./
@@ -42,9 +43,9 @@ RUN sed -i '/\[tool\.uv\.sources\]/,/graphiti-core/d' pyproject.toml && \
     rm -f uv.lock && \
     uv lock
 
-# Install Python dependencies (exclude dev dependency group)
+# Install Python dependencies with all LLM providers (Gemini, Anthropic, Groq, Voyage)
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --no-group dev
+    uv sync --no-group dev --extra providers
 
 # Store graphiti-core version
 RUN echo "${GRAPHITI_CORE_VERSION}" > /app/mcp/.graphiti-core-version
@@ -61,13 +62,13 @@ RUN mkdir -p /var/log/graphiti
 ARG MCP_SERVER_VERSION=1.0.1
 ARG BUILD_DATE
 ARG VCS_REF
-LABEL org.opencontainers.image.title="Graphiti MCP Server (Standalone)" \
-      org.opencontainers.image.description="Standalone Graphiti MCP server for external Neo4j or FalkorDB" \
+LABEL org.opencontainers.image.title="Graphiti MCP Server Full" \
+      org.opencontainers.image.description="Graphiti MCP server with all LLM providers (Gemini, Anthropic, Groq, Voyage)" \
       org.opencontainers.image.version="${MCP_SERVER_VERSION}" \
       org.opencontainers.image.created="${BUILD_DATE}" \
       org.opencontainers.image.revision="${VCS_REF}" \
-      org.opencontainers.image.vendor="Zep AI" \
-      org.opencontainers.image.source="https://github.com/zep-ai/graphiti" \
+      org.opencontainers.image.vendor="thebtf" \
+      org.opencontainers.image.source="https://github.com/thebtf/graphiti" \
       graphiti.core.version="${GRAPHITI_CORE_VERSION}"
 
 # Expose MCP server port
