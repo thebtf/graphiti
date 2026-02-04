@@ -20,7 +20,7 @@ on:
         options:
           - all
           - full
-          - slim
+          - gemini
 
 env:
   REGISTRY: docker.io
@@ -28,7 +28,7 @@ env:
 
 jobs:
   build-full:
-    if: ${{ github.event.inputs.build_target != 'slim' }}
+    if: ${{ github.event.inputs.build_target != 'gemini' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -71,7 +71,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  build-slim:
+  build-gemini:
     if: ${{ github.event.inputs.build_target != 'full' }}
     runs-on: ubuntu-latest
     permissions:
@@ -91,20 +91,20 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Extract metadata (slim)
+      - name: Extract metadata (gemini)
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/thebtf/graphiti-mcp-slim
+          images: ${{ env.REGISTRY }}/thebtf/graphiti-mcp-gemini
           tags: |
             type=raw,value=latest
             type=raw,value=${{ env.GRAPHITI_VERSION }}
 
-      - name: Build and push slim image
+      - name: Build and push gemini image
         uses: docker/build-push-action@v5
         with:
           context: ./mcp_server
-          file: ./mcp_server/docker/Dockerfile.slim
+          file: ./mcp_server/docker/Dockerfile.gemini
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
